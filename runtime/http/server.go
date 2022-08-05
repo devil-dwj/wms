@@ -191,7 +191,11 @@ func (s *Server) fail(c *gin.Context, err error) {
 		Code() int32
 	}); ok {
 		code = e.Code()
-		statusBadRequest = http.StatusOK
+		if code == -1 {
+			statusBadRequest = http.StatusUnauthorized
+		} else {
+			statusBadRequest = http.StatusOK
+		}
 	}
 	c.Error(err)
 	c.JSON(
