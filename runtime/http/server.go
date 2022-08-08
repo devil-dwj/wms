@@ -185,21 +185,18 @@ func (s *Server) bindQuery(ctx *gin.Context) func(interface{}) error {
 }
 
 func (s *Server) fail(c *gin.Context, err error) {
-	statusBadRequest := http.StatusBadRequest
-	var code int32 = 1
+	var status = http.StatusBadRequest
+	var code = 1
 	if e, ok := err.(interface {
-		Code() int32
+		Status() int
+		Code() int
 	}); ok {
+		status = e.Status()
 		code = e.Code()
-		if code == -1 {
-			statusBadRequest = http.StatusUnauthorized
-		} else {
-			statusBadRequest = http.StatusOK
-		}
 	}
 	c.Error(err)
 	c.JSON(
-		statusBadRequest,
+		status,
 		gin.H{
 			"code": code,
 			"msg":  err.Error(),

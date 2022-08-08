@@ -1,0 +1,15 @@
+syntax = "proto3";
+
+package errors;
+
+option go_package = "github.com/devil-dwj/wms/errors;errors";
+
+import "google/protobuf/descriptor.proto";
+
+extend google.protobuf.EnumOptions {
+    int32 default_status = 10000;
+}
+
+extend google.protobuf.EnumValueOptions {
+    int32 status = 10001;
+}
