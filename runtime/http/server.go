@@ -2,16 +2,13 @@ package http
 
 import (
 	"context"
-	"fmt"
 	"net/http"
-	"reflect"
-	"strconv"
-	"strings"
 
 	"github.com/devil-dwj/wms/log"
 	"github.com/devil-dwj/wms/middleware"
 	"github.com/devil-dwj/wms/runtime"
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
 )
 
 func init() {
@@ -29,6 +26,12 @@ func Address(addr string) ServerOption {
 func Middleware(c ...middleware.Middleware) ServerOption {
 	return func(s *Server) {
 		s.chain = c
+	}
+}
+
+func Static(path string) ServerOption {
+	return func(s *Server) {
+		s.static = path
 	}
 }
 
@@ -67,6 +70,7 @@ type Server struct {
 	unaryInt ServerInterceptor
 	chain    []middleware.Middleware
 	routers  map[string]*routerInfo
+	static   string
 }
 
 func NewServer(addr string, opts ...ServerOption) *Server {
@@ -78,6 +82,9 @@ func NewServer(addr string, opts ...ServerOption) *Server {
 
 	for _, o := range opts {
 		o(svr)
+	}
+	if svr.static != "" {
+		svr.Engine.StaticFS(svr.static, http.Dir(svr.static))
 	}
 
 	svr.unaryInt = ChainIterceptor(svr.chain)
@@ -129,9 +136,9 @@ func (s *Server) handler(ctx *gin.Context) {
 			passCtx := runtime.NewServerContext(ctx.Request.Context(), c)
 			reply, err := md.Handler(info.serveImpl, passCtx, df, s.unaryInt)
 			if err != nil {
-				s.fail(ctx, err)
+				fail(ctx, err)
 			} else {
-				s.success(ctx, reply)
+				success(ctx, reply)
 			}
 		}
 	}
@@ -139,52 +146,18 @@ func (s *Server) handler(ctx *gin.Context) {
 
 func (s *Server) bindBody(ctx *gin.Context) func(interface{}) error {
 	return func(i interface{}) error {
-		if err := ctx.ShouldBind(i); err != nil {
-			return err
-		}
-		return nil
+		return ctx.ShouldBind(i)
 	}
 }
 
 func (s *Server) bindQuery(ctx *gin.Context) func(interface{}) error {
 	return func(i interface{}) error {
-		refV := reflect.ValueOf(i).Elem()
-		for i := 0; i < refV.NumField(); i++ {
-			fieldInfo := refV.Type().Field(i)
-			tag := fieldInfo.Tag
-			name := tag.Get("json")
-			arr := strings.Split(name, ",")
-			if len(arr) < 1 {
-				continue
-			}
-			name = arr[0]
-			if name == "" {
-				continue
-			}
-
-			param := ctx.Query(name)
-			fieldType := fieldInfo.Type.Name()
-			if fieldType == "int32" {
-				paramInt, err := strconv.Atoi(param)
-				if err != nil {
-					return fmt.Errorf("query param [%s]", name)
-				}
-				refV.FieldByName(fieldInfo.Name).Set(reflect.ValueOf(int32(paramInt)))
-			} else if fieldType == "int64" {
-				paramInt, err := strconv.Atoi(param)
-				if err != nil {
-					return fmt.Errorf("query param [%s]", name)
-				}
-				refV.FieldByName(fieldInfo.Name).Set(reflect.ValueOf(int64(paramInt)))
-			} else {
-				refV.FieldByName(fieldInfo.Name).Set(reflect.ValueOf(param))
-			}
-		}
-		return nil
+		values := ctx.Request.URL.Query()
+		return binding.MapFormWithTag(i, values, "json")
 	}
 }
 
-func (s *Server) fail(c *gin.Context, err error) {
+func fail(c *gin.Context, err error) {
 	var status = http.StatusBadRequest
 	var code = 1
 	if e, ok := err.(interface {
@@ -204,7 +177,7 @@ func (s *Server) fail(c *gin.Context, err error) {
 		})
 }
 
-func (s *Server) success(c *gin.Context, data interface{}) {
+func success(c *gin.Context, data interface{}) {
 	c.JSON(
 		http.StatusOK,
 		gin.H{

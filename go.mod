@@ -8,4 +8,5 @@ require (
 	go.opentelemetry.io/otel/trace v1.8.0
 	golang.org/x/net v0.0.0-20210405180319-a5a99cb37ef4 // indirect
 	golang.org/x/sync v0.0.0-20220722155255-886fb9371eb4
+	google.golang.org/grpc v1.48.0
 )
