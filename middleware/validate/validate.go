@@ -6,15 +6,13 @@ import (
 	"github.com/devil-dwj/wms/middleware"
 )
 
-type validator interface {
-	Validate() error
-}
-
 func Validator() middleware.Middleware {
 	return func(h middleware.Handler) middleware.Handler {
 		return func(ctx context.Context, req interface{}) (interface{}, error) {
-			if v, ok := req.(validator); ok {
-				if err := v.Validate(); err != nil {
+			if v, ok := req.(interface {
+				ValidateAll() error
+			}); ok {
+				if err := v.ValidateAll(); err != nil {
 					return nil, err
 				}
 			}

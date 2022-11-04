@@ -30,6 +30,12 @@ func WithKeyVals(kv ...interface{}) Option {
 	}
 }
 
+func WithAddKeyVals(kv ...interface{}) Option {
+	return func(o *Options) {
+		o.Keyvals = append(o.Keyvals, kv...)
+	}
+}
+
 type Logger interface {
 	Log(level Level, keyvals ...interface{}) error
 	LogWithOptions(opts ...Option) error

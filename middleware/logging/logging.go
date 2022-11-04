@@ -18,7 +18,8 @@ func Logging(handler middleware.Handler) middleware.Handler {
 		}
 		startTime := time.Now()
 		reply, err := handler(ctx, req)
-		log.LogWithOptions(
+
+		opts := []log.Option{
 			log.WithLevel(log.LevelInfo),
 			log.WithSkip(3),
 			log.WithKeyVals(
@@ -27,7 +28,12 @@ func Logging(handler middleware.Handler) middleware.Handler {
 				"reply", extractArgs(reply),
 				"cost", time.Since(startTime).Milliseconds(),
 			),
-		)
+		}
+		if err != nil {
+			opts = append(opts, log.WithAddKeyVals("err", err.Error()))
+		}
+		log.LogWithOptions(opts...)
+
 		return reply, err
 	}
 }
